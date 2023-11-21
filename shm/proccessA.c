@@ -19,7 +19,9 @@ struct shared_use_st {
     int written_by_you;
 	char some_text[TEXT_SZ];
 };
+  
 
+  
 int main(){
 
     int running = 1;
