@@ -11,15 +11,40 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <pthread.h> 
 
 struct shared_use_st {
     sem_t semA;
     sem_t semB;
     int end;
-    int written_by_you;
+    char written_by_A[TEXT_SZ];
+    char written_by_B[TEXT_SZ];
 	char some_text[TEXT_SZ];
 };
-  
+
+void* thread_send(void* out){
+
+    struct shared_use_st *shared_data;
+    shared_data =(struct shared_use_st*) out;
+
+    char buffer[BUFSIZ]; //array of input
+    printf("Enter some text: ");
+    		
+    fgets(buffer, BUFSIZ, stdin);
+
+    strncpy(shared_data->written_by_A, buffer, TEXT_SZ);
+
+    if (strncmp(buffer, "end", 3) == 0) {
+            shared_data->end = 1;
+    }
+
+    return NULL;
+}
+
+void* thread_get(void* input ){
+    printf("LOL");
+    return NULL;
+}
 
   
 int main(){
@@ -31,51 +56,57 @@ int main(){
     int shmid;  //shared memory id 
     int isshared = 1; // specifes whether a sem in shared (!=0 -->not shared)
     int sem_val; 
+    int res = 0; //thread's return
+
     
-    shmid = shmget((key_t)123755, sizeof(struct shared_use_st), 0666 | IPC_CREAT);
+    shmid = shmget((key_t)1237559, sizeof(struct shared_use_st), 0666 | IPC_CREAT);
     shared_memory = shmat(shmid, (void *)0, 0);
 	
     if (shared_memory == (void *)-1) {
 		fprintf(stderr, "shmat failed\n");
 		exit(EXIT_FAILURE);
 	}
-	printf("Shared memory segment with id %d attached at %p\n", shmid, shared_memory);
+	
+    printf("Shared memory segment with id %d attached at %p\n", shmid, shared_memory);
     shared_data = (struct shared_use_st *)shared_memory;
+    shared_data->end = 0;
 
+    /*semaphore initialisation*/
     sem_init(&shared_data->semA , isshared, INITIAL_VALUE);
     sem_init(&shared_data->semB , isshared, INITIAL_VALUE);
-    
-    sem_getvalue(&shared_data->semA , &sem_val );
-    printf("semA = %d\n" , sem_val );
 
+    pthread_t thread1;
+
+    /*BLOCKED PROCCESS A*/
     sem_wait(&shared_data->semA);
 
-    shared_data->end = 0;
-    
-    while(running){    
-
+    while(running){  
+        
+        res = 0;
         if(shared_data->end){
             break;
         }
         printf("waiting for user...\n");
-        
-        printf("Enter some text: ");		
-        fgets(buffer, BUFSIZ, stdin);
-        strncpy(shared_data->some_text, buffer, TEXT_SZ);
-        shared_data->written_by_you = 1;
-        
-        if (strncmp(buffer, "end", 3) == 0) {
+
+        res = pthread_create(&thread1, NULL, thread_send, (void*)shared_data);
+        res = pthread_join(thread1, NULL); 
+      
+        if (shared_data->end == 1) {
             running = 0;
-            shared_data->end = 1;
+            printf("-------------");
             break;
         }
-        if(shared_data->end){
-            break;
-        }
+
+        // char* end = "end";
+        // if(strcmp(shared_data->written_by_A, end)){
+        //     break;
+        // }
+
+        running++;
     }
     
     if(!shared_data->end){
-    sem_post(&shared_data->semB);
+        sem_post(&shared_data->semB);
     }
     //sem_post(&shared_data->semB);
 

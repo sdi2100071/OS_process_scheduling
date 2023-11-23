@@ -11,13 +11,28 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <pthread.h> 
 
 struct shared_use_st {
     sem_t semA;
     sem_t semB;
+    char* written_by_A;
+    char* written_by_B;
     int end;
 	char some_text[TEXT_SZ];
 };
+
+
+void* thread_send(void* input){
+    printf("LOL");
+    return NULL;
+
+}
+
+void* thread_get(void* input){
+    printf("LOL");
+    return NULL;
+}
 
 int main(){
 
@@ -26,7 +41,7 @@ int main(){
     struct shared_use_st *shared_data;
     char buffer[BUFSIZ]; //array of input
     int shmid;  //shared memory id 
-    shmid = shmget((key_t)123755, sizeof(struct shared_use_st), 0666 | IPC_CREAT);
+    shmid = shmget((key_t)1237559, sizeof(struct shared_use_st), 0666 | IPC_CREAT);
     int isshared = 1; // specifes whether a sem in shared (!=0 -->not shared)
 
     shared_memory = shmat(shmid, (void *)0, 0);
@@ -51,7 +66,7 @@ int main(){
     sem_post(&shared_data->semA); 
     while(running){
 
-        if(shared_data->end){
+        if(shared_data->end == 1){
             break;
         }
 
@@ -67,7 +82,7 @@ int main(){
     }
     
     if(!shared_data->end){
-    sem_wait(&shared_data->semB);
+        sem_wait(&shared_data->semB);
     }
 
     if (shmdt(shared_memory) == -1) {
