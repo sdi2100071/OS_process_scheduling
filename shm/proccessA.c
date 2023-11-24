@@ -19,7 +19,7 @@ struct shared_use_st {
     int end;
     char written_by_A[TEXT_SZ];
     char written_by_B[TEXT_SZ];
-	char some_text[TEXT_SZ];
+	
 };
 
 void* thread_send(void* out){
@@ -35,7 +35,7 @@ void* thread_send(void* out){
     strncpy(shared_data->written_by_A, buffer, TEXT_SZ);
 
     if (strncmp(buffer, "end", 3) == 0) {
-            shared_data->end = 1;
+        shared_data->end = 1;
     }
 
     return NULL;
@@ -50,7 +50,6 @@ void* thread_get(void* input ){
 int main(){
 
     int running = 1;
-    void* shared_memory = (void*)0;
     struct shared_use_st *shared_data;
     char buffer[BUFSIZ]; //array of input
     int shmid;  //shared memory id 
@@ -59,7 +58,9 @@ int main(){
     int res = 0; //thread's return
 
     
-    shmid = shmget((key_t)1237559, sizeof(struct shared_use_st), 0666 | IPC_CREAT);
+    shmid = shmget((key_t)12375599, sizeof(struct shared_use_st), 0666 | IPC_CREAT);
+
+    void* shared_memory = (void*)0;
     shared_memory = shmat(shmid, (void *)0, 0);
 	
     if (shared_memory == (void *)-1) {
@@ -97,12 +98,6 @@ int main(){
             break;
         }
 
-        // char* end = "end";
-        // if(strcmp(shared_data->written_by_A, end)){
-        //     break;
-        // }
-
-        running++;
     }
     
     if(!shared_data->end){
