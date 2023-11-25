@@ -1,5 +1,6 @@
 #define TEXT_SZ 2048
 #define INITIAL_VALUE 0
+#define KEY 12375599
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -16,75 +17,89 @@
 struct shared_use_st {
     sem_t semA;
     sem_t semB;
-    int end;
     char written_by_A[TEXT_SZ];
     char written_by_B[TEXT_SZ];
+    int iswritttingA;
+    int iswritttingB;
+    int end;
 };
 
 
-void* thread_send(void* input){
-    printf("LOL");
+void* thread_read(void* shared_mem){
+
+    struct shared_use_st *shared_data;
+    shared_data = (struct shared_use_st*) shared_mem;
+    char buffer[BUFSIZ];
+    printf(" writtingA %d \n",shared_data->iswritttingA);
+
+    if(shared_data->end == 1){
+        return NULL;
+    }
+
+    // if(shared_data->iswritttingA == 1){
+        //    return NULL;
+    // }
+ 
+    printf("Enter some text: ");		
+    fgets(buffer, BUFSIZ, stdin);
+
+    if (strncmp(buffer, "end", 3) == 0) {
+        shared_data->end = 1;
+        return NULL;
+    }
+
     return NULL;
 
 }
 
-void* thread_get(void* input){
-    printf("LOL");
+void* thread_print(void* shared_mem){
+
     return NULL;
 }
 
 int main(){
 
-    int running = 1;
-    void* shared_memory = (void*)0;
-    struct shared_use_st *shared_data;
-    char buffer[BUFSIZ]; //array of input
     int shmid;  //shared memory id 
-    shmid = shmget((key_t)12375599, sizeof(struct shared_use_st), 0666 | IPC_CREAT);
-    int isshared = 1; // specifes whether a sem in shared (!=0 -->not shared)
+    shmid = shmget((key_t)KEY, sizeof(struct shared_use_st), 0666 | IPC_CREAT);
 
+    void* shared_memory = (void*)0;
     shared_memory = shmat(shmid, (void *)0, 0);
+	
+    struct shared_use_st *shared_data;
+    shared_data = (struct shared_use_st *)shared_memory;
+    shared_data->end = 0;
+    // shared_data->iswritttingA = 0;
+
+
+    printf("waiting for user...\n");
+
+    int res;
+    pthread_t thread1;
+    while(1){
+
+        if(shared_data->end == 1){
+            sem_post(&shared_data->semA); 
+            break;
+        }
+        sem_post(&shared_data->semA); 
+        sem_wait(&shared_data->semB);
+
+        // if(shared_data->iswritttingA == 1){
+        //      continue;
+        // }
+        res = 0;
+        res = pthread_create(&thread1, NULL, thread_read, (void*)shared_data);
+        
+        res = pthread_join(thread1, NULL);  
+        
+    }
+    
+    /*ERROR CONTROL*/
+
 	if (shared_memory == (void *)-1) {
 		fprintf(stderr, "shmat failed\n");
 		exit(EXIT_FAILURE);
 	}
-
-	printf("Shared memory segment with id %d attached at %p\n", shmid, shared_memory);
-    shared_data = (struct shared_use_st *)shared_memory;
-    
-    int sem_val ; 
-    sem_getvalue(&shared_data->semB , &sem_val );
-    printf("semB = %d\n" , sem_val );
-
-    sem_getvalue(&shared_data->semA , &sem_val );
-    printf("semA = %d\n" , sem_val ); 
-    
-    sem_post(&shared_data->semA); 
-    while(running){
-
-
-        if(shared_data->end == 1){
-            printf("end =====%d\n",shared_data->end);
-            printf("INNNNNNNNNNNNNNN\n");
-            break;
-        }
-
-        printf("waiting for user...\n");
-        printf("Enter some text: ");		
-        printf("HELLOOO FROM PROCCESS A %s\n",shared_data->written_by_A);
-        fgets(buffer, BUFSIZ, stdin);
-        // strncpy(shared_data->some_text, buffer, TEXT_SZ);
-        if (strncmp(buffer, "end", 3) == 0) {
-            running = 0;
-            shared_data->end = 1;
-            break;
-        }
-    }
-    
-    if(!shared_data->end){
-        sem_wait(&shared_data->semB);
-    }
-    
 
     if (shmdt(shared_memory) == -1) {
 		fprintf(stderr, "shmdt failed\n");
