@@ -1,6 +1,6 @@
 #define TEXT_SZ 2048
 #define INITIAL_VALUE 0
-#define KEY 12375599
+#define KEY 1237559
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -34,15 +34,14 @@ void* thread_read( void* shared_mem ){
     printf("Enter some text: ");   		
     fgets(buffer, BUFSIZ, stdin);
     strncpy(shared_data->written_by_A, buffer, TEXT_SZ);
-    shared_data->iswritttingA = 0;
+    shared_data->iswritttingA = 1;
 
-    sem_post(&shared_data->semB); //POST B 
+    // sem_post(&shared_data->semB); //POST B 
+    
     if (strncmp(buffer, "end", 3) == 0) {
         shared_data->end = 1;
-        shared_data->iswritttingA = 0;
         return NULL;
     }
-    //shared_data->iswritttingA = 0;
 
     return NULL;
 }
@@ -82,18 +81,27 @@ int main(){
     while(1){ 
 
         if(shared_data->end){
-            sem_post(&shared_data->semB);
+            // sem_post(&shared_data->semB);
             break;
         }
-        sem_post(&shared_data->semA); //A BLOCKED 
-        sem_wait(&shared_data->semB); //POST B 
+
+        sem_wait(&shared_data->semA); //A BLOCKED 
+        sem_post(&shared_data->semB); //POST B 
         
 
         res = 0;
         res = pthread_create(&thread1, NULL, thread_read, (void*)shared_data);
+
+        while(!shared_data->iswritttingA && !shared_data->iswritttingB);
+
+        if(shared_data->iswritttingB)
+            pthread_cancel(thread1);
+        
+        shared_data->iswritttingA = 0;
+
         res = pthread_join(thread1, NULL); 
 
-        shared_data->iswritttingA = 1;
+
 
     }   
 

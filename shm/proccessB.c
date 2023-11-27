@@ -1,6 +1,6 @@
 #define TEXT_SZ 2048
 #define INITIAL_VALUE 0
-#define KEY 12375599
+#define KEY 1237559
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -24,7 +24,6 @@ struct shared_use_st {
     int end;
 };
 
-
 void* thread_read(void* shared_mem){
 
     struct shared_use_st *shared_data;
@@ -35,14 +34,11 @@ void* thread_read(void* shared_mem){
         return NULL;
     }
 
-
-    // if(shared_data->iswritttingA == 0)
-    //     return NULL;
-
-    sem_post(&shared_data->semA); 
+    // sem_post(&shared_data->semA); 
  
     printf("Enter some text: ");		
     fgets(buffer, BUFSIZ, stdin);
+    shared_data->iswritttingB = 1;
 
     if (strncmp(buffer, "end", 3) == 0) {
         shared_data->end = 1;
@@ -90,30 +86,30 @@ int main(){
     while(1){
 
         if(shared_data->end == 1){
-            // sem_post(&shared_data->semA); 
-            pthread_cancel(thread1);
+            // pthread_cancel(thread1);
             break;
         }
-        sem_post(&shared_data->semB); 
-        sem_wait(&shared_data->semA);
 
-        // if(shared_data->iswritttingA == 1){
-        //      continue;
-        // }
+        sem_post(&shared_data->semA); 
+        sem_wait(&shared_data->semB);
+
         res = 0;
-        res = pthread_create(&thread1, NULL, thread_read, (void*)shared_data);  
-        res = pthread_join(thread1, NULL);  
-        if(shared_data->end == 0){
-            res = pthread_create(&thread2, NULL, thread_print, (void*)shared_data);  
-        }
-        // if(shared_data->iswritttingA == 1){
+        res = pthread_create(&thread1, NULL, thread_read, (void*)shared_data);   
 
-        // }
+        while(!shared_data->iswritttingA && !shared_data->iswritttingB);
+
+        if(shared_data->iswritttingA)
+            pthread_cancel(thread1);
+        
+        shared_data->iswritttingB = 0;
+      
+        res = pthread_join(thread1, NULL);  
+
+
 
     }
     
     /*ERROR CONTROL*/
-
 	if (shared_memory == (void *)-1) {
 		fprintf(stderr, "shmat failed\n");
 		exit(EXIT_FAILURE);
