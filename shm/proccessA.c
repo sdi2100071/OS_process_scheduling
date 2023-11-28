@@ -30,14 +30,19 @@ void* thread_read( void* shared_mem ){
     struct shared_use_st *shared_data;
     shared_data = (struct shared_use_st*) shared_mem;
     char buffer[BUFSIZ];
-
-    printf("Enter some text: ");   		
+    
+    
+    printf("\n");
+    printf("Enter some text for A: ");   		
     fgets(buffer, BUFSIZ, stdin);
     strncpy(shared_data->written_by_A, buffer, TEXT_SZ);
     shared_data->iswritttingA = 1;
 
+    if(shared_data->end == 1 ){
+        return NULL;
+    }
     // sem_post(&shared_data->semB); //POST B 
-    
+
     if (strncmp(buffer, "end", 3) == 0) {
         shared_data->end = 1;
         return NULL;
@@ -48,7 +53,19 @@ void* thread_read( void* shared_mem ){
 
 void* thread_print( void* shared_mem ){
 
+    struct shared_use_st *shared_data;
+    shared_data = (struct shared_use_st*) shared_mem;
+    char buffer[BUFSIZ];
+
+    if(shared_data->end ){
+        return NULL;
+    }
+    printf("\n");
+    printf("B WROTE: ");
+    printf("%s\n",shared_data->written_by_B);
+
     return NULL;
+
 }
 
   
@@ -77,7 +94,7 @@ int main(){
 
     int res; 
     pthread_t thread1;
-
+    pthread_t thread2;
     while(1){ 
 
         if(shared_data->end){
@@ -88,20 +105,19 @@ int main(){
         sem_wait(&shared_data->semA); //A BLOCKED 
         sem_post(&shared_data->semB); //POST B 
         
-
         res = 0;
         res = pthread_create(&thread1, NULL, thread_read, (void*)shared_data);
 
+
         while(!shared_data->iswritttingA && !shared_data->iswritttingB);
 
-        if(shared_data->iswritttingB)
+        if(shared_data->iswritttingB && !shared_data->end){
             pthread_cancel(thread1);
-        
-        shared_data->iswritttingA = 0;
-
+            printf("\n");
+            res = pthread_create(&thread2, NULL, thread_print, (void*)shared_data);
+        }
         res = pthread_join(thread1, NULL); 
-
-
+        shared_data->iswritttingA = 0;
 
     }   
 
