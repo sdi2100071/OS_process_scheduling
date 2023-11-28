@@ -20,8 +20,10 @@ struct shared_use_st {
     sem_t semB;
     char written_by_A[TEXT_SZ];
     char written_by_B[TEXT_SZ];
+    int whole_text;
     int iswritttingA;
     int iswritttingB;
+    int pieces;
     int end;
 };
 
@@ -30,18 +32,29 @@ void* thread_read( void* shared_mem ){
     struct shared_use_st *shared_data;
     shared_data = (struct shared_use_st*) shared_mem;
     char buffer[BUFSIZ];
+    int input_size;
     
     
     printf("\n");
     printf("Enter some text for A: ");   		
     fgets(buffer, BUFSIZ, stdin);
-    strncpy(shared_data->written_by_A, buffer, TEXT_SZ);
+
+    input_size =strlen(buffer);
+    shared_data->pieces = input_size / 15;
+    if( input_size % 15 ){
+        shared_data->pieces ++;
+    }
+    
+    int i;
+    for( i = 0; i < shared_data->pieces; i++){
+        strncpy(&shared_data->written_by_A[i*15], &buffer[i*15], 15);
+    }
+    shared_data->whole_text = 1;
     shared_data->iswritttingA = 1;
 
     if(shared_data->end == 1 ){
         return NULL;
     }
-    // sem_post(&shared_data->semB); //POST B 
 
     if (strncmp(buffer, "end", 3) == 0) {
         shared_data->end = 1;
@@ -62,6 +75,8 @@ void* thread_print( void* shared_mem ){
     }
     printf("\n");
     printf("B WROTE: ");
+    while(!shared_data->whole_text);
+
     printf("%s\n",shared_data->written_by_B);
 
     return NULL;
@@ -82,6 +97,7 @@ int main(){
     shared_data->end = 0; 
     shared_data->iswritttingA = 2;
     shared_data->iswritttingB = 2;
+    int whole_text = 0;
 
     /*semaphore initialisation*/
   
