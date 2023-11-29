@@ -13,13 +13,18 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <pthread.h> 
+#include <time.h>
 
 /*SHARED MEMORY STRUCT*/
 struct shared_use_st {
     sem_t semA;
     sem_t semB;
+    clock_t start;
+    clock_t end_time;
     char written_by_A[TEXT_SZ];
     char written_by_B[TEXT_SZ];
+    float statistics[4][2];
+    int first_piece;
     int whole_text;
     int iswritttingA;
     int iswritttingB;
@@ -34,8 +39,12 @@ void* thread_read( void* shared_mem ){
     char buffer[BUFSIZ];
     int input_size;
     
+    // shared_data->statistics[0][0] ++;
+
+    if(shared_data->end == 1 ){
+        return NULL;
+    }
     
-    printf("\n");
     printf("Enter some text for A: ");   		
     fgets(buffer, BUFSIZ, stdin);
 
@@ -44,17 +53,23 @@ void* thread_read( void* shared_mem ){
     if( input_size % 15 ){
         shared_data->pieces ++;
     }
+
+    shared_data->statistics[2][0] += shared_data->pieces;
     
     int i;
     for( i = 0; i < shared_data->pieces; i++){
+        if(i == 0){
+            shared_data->first_piece = 1;
+            shared_data->start = clock();
+        }
+        else{
+            shared_data->first_piece = 0;
+        }
+        
         strncpy(&shared_data->written_by_A[i*15], &buffer[i*15], 15);
     }
     shared_data->whole_text = 1;
     shared_data->iswritttingA = 1;
-
-    if(shared_data->end == 1 ){
-        return NULL;
-    }
 
     if (strncmp(buffer, "end", 3) == 0) {
         shared_data->end = 1;
@@ -70,11 +85,15 @@ void* thread_print( void* shared_mem ){
     shared_data = (struct shared_use_st*) shared_mem;
     char buffer[BUFSIZ];
 
+
     if(shared_data->end ){
         return NULL;
     }
-    printf("\n");
+    shared_data->statistics[1][0]++;
+
+    // printf("\n");
     printf("B WROTE: ");
+
     while(!shared_data->whole_text);
 
     printf("%s\n",shared_data->written_by_B);
@@ -94,10 +113,17 @@ int main(){
 	
     struct shared_use_st *shared_data;
     shared_data = (struct shared_use_st *)shared_memory;
+   
     shared_data->end = 0; 
-    shared_data->iswritttingA = 2;
-    shared_data->iswritttingB = 2;
+    shared_data->iswritttingA = 0;
+    shared_data->iswritttingB = 0;
     int whole_text = 0;
+
+    int i;
+    for( i = 0; i <= 3; i++ ){
+        shared_data->statistics[i][0] = 0;
+        shared_data->statistics[i][1] = 0;
+    }
 
     /*semaphore initialisation*/
   
@@ -106,24 +132,28 @@ int main(){
     sem_init(&shared_data->semB , isshared, INITIAL_VALUE);
 
     /*BLOCKED PROCCESS A*/
-    printf("waiting for user...\n");
+    printf("waiting for process B to unblock me...\n");
 
     int res; 
     pthread_t thread1;
     pthread_t thread2;
     while(1){ 
 
-        if(shared_data->end){
-            // sem_post(&shared_data->semB);
+        if(shared_data->end ){
+            if(shared_data->iswritttingB){
+                printf("\nB WROTE: end\n");
+                shared_data->statistics[1][0]++;
+            }
+            // printf("\n\n\n\n"); 
             break;
         }
+        shared_data->iswritttingA = 0;
 
         sem_wait(&shared_data->semA); //A BLOCKED 
         sem_post(&shared_data->semB); //POST B 
         
         res = 0;
         res = pthread_create(&thread1, NULL, thread_read, (void*)shared_data);
-
 
         while(!shared_data->iswritttingA && !shared_data->iswritttingB);
 
@@ -133,10 +163,29 @@ int main(){
             res = pthread_create(&thread2, NULL, thread_print, (void*)shared_data);
         }
         res = pthread_join(thread1, NULL); 
-        shared_data->iswritttingA = 0;
 
     }   
 
+
+    // printf("\n\n\n\n");
+    printf("--------------------------------\n");
+    printf("\n\n");
+    int mess_sent = 0;
+    mess_sent = shared_data->statistics[1][1] + 1;
+
+    printf("MESSAGES I SENT: %d\n", mess_sent);
+    printf("MESSAGES I GOT: %d\n", (int)shared_data->statistics[1][0]); //+1 proble with end
+    printf("TOTAL PIECES: %d\n",(int)shared_data->statistics[2][0]);
+    float avg_time = shared_data->statistics[3][0] ;
+
+    float avg = 0;
+    if(mess_sent){
+        avg = (float)shared_data->statistics[2][0] / mess_sent;
+    }
+
+    printf("PIECES PER MESSAGE: %f\n" ,avg );
+
+    printf("AVERAGE TIME = %f\n",avg_time);
 
     /*ERROR CONTROL*/
     if (shared_memory == (void *)-1) {
