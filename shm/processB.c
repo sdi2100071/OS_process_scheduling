@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
+#include <string.h>   
 #include <sys/shm.h>    
 #include <semaphore.h>
 #include <fcntl.h>

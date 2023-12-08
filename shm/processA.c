@@ -9,7 +9,7 @@
 #include <sys/shm.h>    
 #include <semaphore.h>
 #include <fcntl.h>
-#include <sys/stat.h>
+#include <sys/stat.h>   
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <pthread.h> 
