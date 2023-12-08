@@ -124,7 +124,7 @@ int main(){
 
     struct thread_parameters *parameters;
     parameters->shared_mem = shared_data;
-
+    
     /////////////////CODE///////////////////////////////////////////
 
     // pthread_t thread_input;
@@ -163,4 +163,4 @@ int main(){
     printf("\n\n"); 
 
     return 0;
-}    
+}

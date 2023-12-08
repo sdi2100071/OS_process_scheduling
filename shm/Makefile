@@ -1,4 +1,4 @@
 make:
 	clear
-	gcc -pthread -o procA proccessA.c
-	gcc -pthread -o procB proccessB.c
+	gcc -pthread -o procA processA.c
+	gcc -pthread -o procB processB.c

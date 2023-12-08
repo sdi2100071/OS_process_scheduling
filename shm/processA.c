@@ -152,6 +152,7 @@ int main(){
     pthread_t thread_output;
     pthread_t thread_fgets;
     
+    printf("Waitting for process B.....\n");
     sem_wait(&shared_data->semA);
     sem_post(&shared_data->semB);
 
