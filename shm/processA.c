@@ -9,19 +9,21 @@
 #include <sys/shm.h>    
 #include <semaphore.h>
 #include <fcntl.h>
-#include <sys/stat.h>   
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <pthread.h> 
 #include <time.h>
+#include <sys/time.h>
 
 
 /*SHARED MEMORY STRUCT*/
 struct shared_use_st {
     sem_t semA;
     sem_t semB;
-    clock_t start;
-    clock_t end_time;
+    long start;
+    long timeA;
+    long timeB;
     char written_by_A[TEXT_SZ];
     char written_by_B[TEXT_SZ];
     float statistics[4][2];
@@ -45,14 +47,19 @@ void* thread_fget(void* parameter){
 
     struct thread_parameters *param;
     struct shared_use_st *shared_data;
+    struct timeval current_time;
     param = (struct thread_parameters*)parameter;
     shared_data = param->shared_mem;
     char buffer[TEXT_SZ];
     int input_size;
 
-    while(1){
+    while(1){   
 
-        printf("Enter some text for A:\n ");   		
+        printf("Enter some text for A:\n "); 
+        gettimeofday(&current_time,NULL);
+        shared_data->start = current_time.tv_sec;
+        // printf("seconds : %ld\nmicro seconds : %ld",
+        //                 current_time.tv_sec, current_time.tv_usec);
         fgets(buffer, BUFSIZ, stdin);
         shared_data->iswritttingA = 1;
         
@@ -92,6 +99,7 @@ void* thread_print(void* parameter){
 
     struct thread_parameters *param;
     struct shared_use_st *shared_data;
+    struct timeval endoftime;
     param = (struct thread_parameters*)parameter;
     shared_data = param->shared_mem;
 
@@ -101,6 +109,10 @@ void* thread_print(void* parameter){
             return NULL;
 
         if(shared_data->iswritttingB){
+            if(shared_data->first_piece){
+                gettimeofday(&endoftime,NULL);
+                shared_data->timeB += endoftime.tv_sec - shared_data->start;
+            }
             while(!shared_data->whole_text);
             shared_data->statistics[1][0]++;
             printf("\nB WROTE:%s\n",shared_data->written_by_B);
@@ -126,6 +138,7 @@ int main(){
    
     /*INITIALISE SHARED MEM STRUCT */
     shared_data->end = 0; 
+    shared_data->timeA = 0;
     shared_data->iswritttingA = 0;
     shared_data->iswritttingB = 0;
     int whole_text = 0;
@@ -177,8 +190,10 @@ int main(){
     float avg_time = 0;
     if(mess_sent){
         avg = (float)shared_data->statistics[2][0] / mess_sent;
+        avg_time = (float)(shared_data->timeA) / mess_sent;
     }
-    printf("PIECES PER MESSAGE: %f\n" ,avg);
+    printf("PIECES PER MESSAGE: %0.2f\n" ,avg);
+    printf("AVERAGE TIME: %0.3f microseconds\n" ,avg_time);
     printf("--------------------------------\n");
     printf("\n\n"); 
 

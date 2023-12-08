@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>   
+#include <string.h>
 #include <sys/shm.h>    
 #include <semaphore.h>
 #include <fcntl.h>
@@ -14,14 +14,16 @@
 #include <sys/wait.h>
 #include <pthread.h> 
 #include <time.h>
+#include <sys/time.h>
 
 
 /*SHARED MEMORY STRUCT*/
 struct shared_use_st {
     sem_t semA;
     sem_t semB;
-    clock_t start;
-    clock_t end_time;
+    long start;
+    long timeA;
+    long timeB;
     char written_by_A[TEXT_SZ];
     char written_by_B[TEXT_SZ];
     float statistics[4][2];
@@ -44,14 +46,20 @@ void* thread_fget(void* parameter){
 
     struct thread_parameters *param;
     struct shared_use_st *shared_data;
+    struct timeval current_time;
+
     param = (struct thread_parameters*)parameter;
     shared_data = param->shared_mem;
     char buffer[TEXT_SZ];
     int input_size;
+    int i;
 
 
     while(1){
-        printf("Enter some text for B:\n ");   		
+
+        printf("Enter some text for B:\n ");  
+        gettimeofday(&current_time,NULL);
+        shared_data->start = current_time.tv_sec; 		
         fgets(buffer, BUFSIZ, stdin);
         
         input_size = strlen(buffer);
@@ -62,15 +70,13 @@ void* thread_fget(void* parameter){
 
         shared_data->statistics[2][1] += shared_data->pieces;
     	
-        int i;
         for(i = 0; i < shared_data->pieces; i++){
             if(i == 0){
                 shared_data->first_piece = 1;
-                shared_data->start = clock();
             }
-        else{
-            shared_data->first_piece = 0;
-        }       
+            else{
+                shared_data->first_piece = 0;
+            }       
             strncpy(&shared_data->written_by_B[i*15], &buffer[i*15], 15);
         }
 
@@ -90,6 +96,8 @@ void* thread_print(void* parameter){
 
     struct thread_parameters *param;
     struct shared_use_st *shared_data;
+    struct timeval endoftime;
+
     param = (struct thread_parameters*)parameter;
     shared_data = param->shared_mem;
 
@@ -98,6 +106,13 @@ void* thread_print(void* parameter){
             break;
 
         if(shared_data->iswritttingA){
+            if(shared_data->first_piece){
+                gettimeofday(&endoftime,NULL);
+                shared_data->timeA += endoftime.tv_sec - shared_data->start;
+                // printf("seconds : %ld\nmicro seconds : %ld",
+                //         endoftime.tv_sec, endoftime.tv_usec);
+
+            }
             while(!shared_data->whole_text);
             printf("\nA WROTE: %s\n", shared_data->written_by_A);
             shared_data->iswritttingA = 0;
@@ -154,11 +169,16 @@ int main(){
     printf("TOTAL PIECES: %d\n",(int)shared_data->statistics[2][1]);
 
     float avg = 0;
-    float avg_time = 0;
+    float avg_time = 0.0;
     if(mess_sent){
         avg = (float)shared_data->statistics[2][1] / mess_sent;
+        avg_time =  (float)(shared_data->timeB) / mess_sent;
+
     }
-    printf("PIECES PER MESSAGE: %f\n" ,avg);
+    printf("PIECES PER MESSAGE: %0.2f\n" ,avg);
+    
+    printf("AVERAGE TIME: %0.3f microseconds\n" ,avg_time);
+
     printf("--------------------------------\n");
     printf("\n\n"); 
 
