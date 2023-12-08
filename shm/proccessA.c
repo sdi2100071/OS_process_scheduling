@@ -1,6 +1,6 @@
 #define TEXT_SZ 2048
 #define INITIAL_VALUE 0
-#define KEY 1237559
+#define KEY 123445
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -23,6 +23,7 @@ struct shared_use_st {
     clock_t end_time;
     char written_by_A[TEXT_SZ];
     char written_by_B[TEXT_SZ];
+    char input[TEXT_SZ];
     float statistics[4][2];
     int first_piece;
     int whole_text;
@@ -32,47 +33,101 @@ struct shared_use_st {
     int end;
 };
 
+
+void* thread_string(void* share_mem){
+    char outp[TEXT_SZ];
+    struct shared_use_st * shared_data;
+    shared_data = share_mem;
+    printf("\nEnter some text for A: ");   		
+    fgets((char*)outp, TEXT_SZ, stdin);
+    strncpy(shared_data->input, outp, TEXT_SZ);
+    shared_data->iswritttingA = 1;
+}
+
+
 void* thread_read( void* shared_mem ){
 
     struct shared_use_st *shared_data;
     shared_data = (struct shared_use_st*) shared_mem;
-    char buffer[BUFSIZ];
+    char buffer[TEXT_SZ];
     int input_size;
-    
-    if(shared_data->end == 1 )
-        return NULL;
-    
-    printf("Enter some text for A: ");   		
-    fgets(buffer, BUFSIZ, stdin);
+    int res = 0;
+    pthread_t inputA;
 
-    input_size =strlen(buffer);
-    shared_data->pieces = input_size / 15;
-    if( input_size % 15 ){
-        shared_data->pieces ++;
-    }
 
-    shared_data->statistics[2][0] += shared_data->pieces;
-    
-    int i;
-    for( i = 0; i < shared_data->pieces; i++){
-        if(i == 0){
-            shared_data->first_piece = 1;
-            shared_data->start = clock();
-        }
-        else{
-            shared_data->first_piece = 0;
-        }
+    while(1){
+
+        sem_wait(&shared_data->semA);
+        sem_post(&shared_data->semB);
+
+        shared_data->iswritttingA = 0;
+        shared_data->iswritttingB = 0;
+          
+        if(shared_data->end == 1 )
+            return NULL;
+
+        res = pthread_create(&inputA, NULL, thread_string, (void*)shared_data);   
+
+        while(shared_data->iswritttingA == 0 && shared_data->iswritttingB == 0);
+
+        if(shared_data->iswritttingB)
+            pthread_cancel(inputA);
+
+        pthread_join(inputA, NULL);
+
+       
+            // sem_wait(&shared_data->semA);
+            // sem_post(&shared_data->semB);
         
-        strncpy(&shared_data->written_by_A[i*15], &buffer[i*15], 15);
-    }
-    shared_data->whole_text = 1;
-    shared_data->iswritttingA = 1;
 
-    if (strncmp(buffer, "end", 3) == 0) {
-        shared_data->end = 1;
-        return NULL;
-    }
+        if(shared_data->iswritttingA){
+            strncpy(buffer, shared_data->input, TEXT_SZ);
+            input_size = strlen(shared_data->input);
+            shared_data->pieces = input_size / 15;
+            if( input_size % 15 ){
+                shared_data->pieces ++;
+            }
 
+            shared_data->statistics[2][0] += shared_data->pieces;
+            
+            int i;
+            for( i = 0; i < shared_data->pieces; i++){
+                if(i == 0){
+                    shared_data->first_piece = 1;
+                    shared_data->start = clock();
+                }
+                else{
+                    shared_data->first_piece = 0;
+                }
+                
+                strncpy(&shared_data->written_by_A[i*15], &buffer[i*15], 15);
+            }
+
+            shared_data->whole_text = 1;
+
+            if (strncmp(buffer, "end", 3) == 0) {
+                shared_data->end = 1;
+            }
+        }
+
+        sem_wait(&shared_data->semA);
+        sem_post(&shared_data->semB);
+
+        if(shared_data->iswritttingB){
+
+            printf("\nB WROTE: ");
+
+            if(shared_data->first_piece){
+                shared_data->end_time = clock();
+                shared_data->statistics[3][1] += ((double)(shared_data->end_time - shared_data->start)) /  CLOCKS_PER_SEC;
+            }
+
+            while(!shared_data->whole_text);
+
+            printf("%s",shared_data->written_by_B);
+        }
+
+    }
     return NULL;
 }
 
@@ -100,7 +155,6 @@ void* thread_print( void* shared_mem ){
     }
 
     while(!shared_data->whole_text);
-
 
     printf("%s\n",shared_data->written_by_B);
 
@@ -131,51 +185,26 @@ int main(){
         shared_data->statistics[i][1] = 0;
     }
 
-
+ 
     /*semaphore initialisation*/
   
     int isshared = 1; // specifes whether a sem in shared (!= 0 -->not shared)
     sem_init(&shared_data->semA , isshared, INITIAL_VALUE);
     sem_init(&shared_data->semB , isshared, INITIAL_VALUE);
 
+
     /*BLOCKED PROCCESS A*/
     printf("waiting for process B to unblock me...\n");
 
     int res; 
     pthread_t thread1;
-    pthread_t thread2;
-    while(1){ 
-
-        if(shared_data->end ){
-            if(shared_data->iswritttingB){
-                printf("\nB WROTE: end\n");
-            }
-            break;
-        }
-        
-        shared_data->iswritttingA = 0;
-
-        sem_wait(&shared_data->semA); //A BLOCKED 
-        sem_post(&shared_data->semB); //POST B 
-        
-        res = 0;
-        res = pthread_create(&thread1, NULL, thread_read, (void*)shared_data);
-
-        while(!shared_data->iswritttingA && !shared_data->iswritttingB);
-
-        if(shared_data->iswritttingA)
-            shared_data->statistics[0][0] ++;
 
 
-        if(shared_data->iswritttingB){
-            pthread_cancel(thread1);
-            printf("\n");
-            res = pthread_create(&thread2, NULL, thread_print, (void*)shared_data);
-        }
-        res = pthread_join(thread1, NULL);
-        res = pthread_join(thread2, NULL); 
+    sem_wait(&shared_data->semA); //A BLOCKED 
+    sem_post(&shared_data->semB); //POST B 
 
-    }   
+    res = pthread_create(&thread1, NULL, thread_read, (void*)shared_data);
+    res = pthread_join(thread1, NULL);
 
     printf("--------------------------------\n");
 
