@@ -71,10 +71,10 @@ void* thread_fget(void* parameter){
             strncpy(&shared_data->written_by_A[i*15], &buffer[i*15], 15);
         }
 
-        // sem_wait(&shared_data->semA);
 
         shared_data->statistics[0][0]++;
         shared_data->whole_text = 1;
+        sem_wait(&shared_data->semA);
 
         if (strncmp(buffer, "end", 3) == 0) {
             shared_data->end = 1;
@@ -105,7 +105,8 @@ void* thread_print(void* parameter){
             
             while(!shared_data->whole_text);
             printf("\nB WROTE:%s\n",shared_data->written_by_B);
-            // sem_post(&shared_data->semB);
+
+            sem_post(&shared_data->semB);
 
             shared_data->statistics[1][0]++;            
             shared_data->iswritttingB = 0;
