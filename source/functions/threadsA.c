@@ -14,7 +14,7 @@
 #include "../../include/shared_memory.h"
 
 
-void* thread_fget(void* parameter){
+void* thread_send(void* parameter){
 
     struct shared_use_st *shared_data;
     shared_data =( struct shared_use_st*)parameter;
@@ -64,7 +64,7 @@ void* thread_fget(void* parameter){
 }
 
 
-void* thread_print(void* parameter){
+void* thread_receive(void* parameter){
     
     struct shared_use_st *shared_data;
     shared_data =( struct shared_use_st*)parameter;

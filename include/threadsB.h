@@ -1,3 +1,3 @@
-void* thread_fget(void* parameter);
+void* thread_send(void* parameter);
 
-void* thread_print(void* parameter);
+void* thread_receive(void* parameter);

@@ -1,4 +1,4 @@
 
-void* thread_fget(void*);
+void* thread_send(void*);
 
-void* thread_print(void*);
+void* thread_receive(void*);

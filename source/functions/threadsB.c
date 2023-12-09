@@ -15,7 +15,7 @@
 
 
 
-void* thread_fget(void* parameter){
+void* thread_send(void* parameter){
 
     struct shared_use_st *shared_data;
     shared_data =( struct shared_use_st*)parameter;
@@ -51,8 +51,6 @@ void* thread_fget(void* parameter){
             strncpy(&shared_data->written_by_B[i*15], &buffer[i*15], 15);
         }
 
-
-
         shared_data->statistics[0][1]++;
         shared_data->whole_text = 1;
         shared_data->iswritttingB = 1;
@@ -70,7 +68,7 @@ void* thread_fget(void* parameter){
 
 
 
-void* thread_print(void* parameter ){
+void* thread_receive(void* parameter ){
 
     struct shared_use_st *shared_data;
     shared_data =( struct shared_use_st*)parameter;
