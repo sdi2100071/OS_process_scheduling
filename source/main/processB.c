@@ -15,8 +15,6 @@
 #include "../../include/threadsB.h"
 #include "../../include/myfuncs.h"
 
-
-
 int main(){
 
     /*ALLOCATION OF SHARED  MEMORY SEGMENT*/   
@@ -27,18 +25,36 @@ int main(){
 
     pthread_t thread_output;
     pthread_t thread_input;
-
-    sem_post(&shared_data->semA);
+    
+    /*RANDEVOUZ POINT*/
+    sem_post(&shared_data->semA);   //unblocks A 
     sem_wait(&shared_data->semB);
 
-    int res = 0;//elegxos gia error
+    int res = 0;
+
     res = pthread_create(&thread_output, NULL, thread_receive,(void*)shared_data);
+    if (res) {
+		perror("Thread creation failed");
+		exit(EXIT_FAILURE);
+	}
+   
     res = pthread_create(&thread_input, NULL, thread_send,(void*)shared_data);
-    pthread_join(thread_output, NULL);
+    if (res) {
+		perror("Thread creation failed");
+		exit(EXIT_FAILURE);
+	}
+    
+    res = pthread_join(thread_output, NULL);
+    if (res) {
+		perror("Thread join failed");
+		exit(EXIT_FAILURE);
+	}
 
     printf("\nEND OF CHAT\n");
 
-    int p = 1;
+    /*Print of Statistics*/
+    
+    int p = 1;  //->1 for procB , ->0 for procA
     Print_statistics(shared_data, p);
 
     return 0;

@@ -32,6 +32,7 @@ void* Allocate_shared_memory(int* id){
     return shared_memory;
 }
 
+/*INITILISES ALL SHARED MEMORY'S STRUCT VARIABLES WITH 0*/
 
 void Initialise_shared_mem(struct shared_use_st* shmem){
 
@@ -44,7 +45,6 @@ void Initialise_shared_mem(struct shared_use_st* shmem){
     shared_data->iswritttingB = 0;
     shared_data->pieces = 0;
     shared_data->whole_text = 0;
-
 
     int i;
     for( i = 0; i < 3; i++ ){
@@ -59,12 +59,14 @@ void Initialise_shared_mem(struct shared_use_st* shmem){
 
 }
 
+/*PRINTS ALL STATISTIC MESSAGES AT THE END OF EVERY PROCESSES CHAT*/
 
 void Print_statistics(struct shared_use_st* shm , int p){
 
     struct shared_use_st *shared_data = shm;
 
-    printf("--------------------------------\n");
+    printf("\n------------STATISTICS------------\n");
+   
     int mess_sent = 0;
     mess_sent = shared_data->statistics[0][p];
     printf("MESSAGES SENT: %d\n", mess_sent);
@@ -82,11 +84,12 @@ void Print_statistics(struct shared_use_st* shm , int p){
         else
             avg_time = (float)(shared_data->timeB) / mess_sent;
 
-
     }
+
     printf("PIECES PER MESSAGE: %0.2f\n" ,avg);
     printf("AVERAGE TIME: %0.3f microseconds\n" ,avg_time);
-    printf("--------------------------------\n");
+    
+    printf("----------------------------------");
     printf("\n\n");
 
 }
