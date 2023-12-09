@@ -16,7 +16,7 @@
 #include <time.h>
 #include <sys/time.h>
 
-
+     
 /*SHARED MEMORY STRUCT*/
 struct shared_use_st {
     sem_t semA;
