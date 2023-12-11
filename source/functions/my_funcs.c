@@ -81,8 +81,8 @@ void Print_statistics(struct shared_use_st* shm , int p){
         avg = (float)shared_data->statistics[2][p] / mess_sent;
         if(!p)
             avg_time = (float)(shared_data->timeA) / mess_sent;
-        else
-            avg_time = (float)(shared_data->timeB) / mess_sent;
+        
+        avg_time = (float)(shared_data->timeB) / mess_sent;
 
     }
 
