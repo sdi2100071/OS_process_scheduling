@@ -1,6 +1,6 @@
 #define TEXT_SZ 2048
 #define INITIAL_VALUE 0
-#define KEY 123455
+#define KEY 1234477
 
 #include <unistd.h>
 #include <stdlib.h>
